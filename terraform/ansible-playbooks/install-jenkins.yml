@@ -1,0 +1,52 @@
+---
+ - hosts: jenkins
+   tasks:
+    - name: Update and upgrade apt packages
+      become: true
+      apt:
+        upgrade: yes
+        update_cache: yes
+        cache_valid_time: 432000  
+
+    - name: Install Java 
+      become: yes
+      apt:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+           - openjdk-11-jdk
+
+    - name: ensure the jenkins apt repository key is installed
+      apt_key: url=https://pkg.jenkins.io/debian-stable/jenkins.io.key state=present
+      become: yes
+
+    - name: ensure the repository is configured
+      apt_repository: repo='deb https://pkg.jenkins.io/debian-stable binary/' state=present
+      become: yes
+
+    - name: ensure jenkins is installed
+      apt: name=jenkins update_cache=yes
+      become: yes
+
+    - name: add prefix to deployment
+      replace:
+        path: /lib/systemd/system/jenkins.service
+        regexp: '#Environment="JENKINS_PREFIX=/jenkins"'
+        replace: 'Environment="JENKINS_PREFIX=/jenkins"'
+
+    - name: reload systemd
+      become: true
+      command: systemctl daemon-reload
+
+    - name: restart jenkins
+      become: true
+      command: systemctl restart jenkins
+
+    - name: adding jenkins to docker group 
+      become: true
+      user:
+        name: jenkins
+        append: yes
+        groups: docker
+
